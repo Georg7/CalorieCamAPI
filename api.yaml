@@ -2,7 +2,7 @@ openapi: 3.0.1
 info:
   title: CalorieCam Partner API
   description: >
-    NOTE: API not final, not live, and subject to change. Intended to serve as a basis for discussion on how to best integrate. All measurement values use the metric system.
+    Selected partners can use this API to integrate with CalorieCam. Partners can refer user to CalorieCam and receive nutritional data, insights, recommendations and more from authenticated user the partner has referred.
   version: 1.0.0
 servers:
   - url: https://api.caloriecam.ai/v1
@@ -123,32 +123,32 @@ components:
                   billingIssue,
                 ]
               example: initialPurchase
-            goals:
+        goals:
+          type: object
+          description: The daily calorie and macros goals for the user.
+          properties:
+            nutrition:
               type: object
-              description: The daily calorie and macros goals for the user.
               properties:
-                nutrition:
+                macros:
                   type: object
                   properties:
-                    macros:
-                      type: object
-                      properties:
-                        carbs:
-                          type: number
-                          description: The amount of carbohydrates in grams.
-                          example: 10
-                        protein:
-                          type: number
-                          description: The amount of protein in grams.
-                          example: 5.5
-                        fat:
-                          type: number
-                          description: The amount of fat in grams.
-                          example: 8.9
-                    calories:
+                    carbs:
                       type: number
-                      description: The total number of calories in kcal.
-                      example: 89
+                      description: The amount of carbohydrates in grams.
+                      example: 10
+                    protein:
+                      type: number
+                      description: The amount of protein in grams.
+                      example: 5.5
+                    fat:
+                      type: number
+                      description: The amount of fat in grams.
+                      example: 8.9
+                calories:
+                  type: number
+                  description: The total number of calories in kcal.
+                  example: 89
     Meal:
       type: object
       properties:
@@ -454,11 +454,11 @@ components:
 security:
   - BearerAuth: []
 paths:
-  /r:
+  /referral:
     post:
-      summary: URL with JWT in query param
+      summary: Refer a user
       description: >
-        Directing users with a JWT token in the query parameter `j`. The token should have a payload structured as described as below. See `JwtPayload` in schemas. Note that this is the minimum required information. Users who navigate to this URL will be redirected to the App/Play Store.
+        Directing users with a JWT token in the query parameter `j`. The token must have a payload structured as described in the `JwtPayload` schema. Note that this is the minimum required information. Users who navigate to this URL will be redirected to the App/Play Store and receive a correct attribution. Correctly attributed users' welcome screen in CalorieCam will show all relevant information from the referring partner (e.g. personal trainer, gym, etc.)
       parameters:
         - name: j
           in: query
@@ -484,7 +484,7 @@ paths:
     get:
       summary: Get user details
       description: >
-        This endpoint retrieves user details based on the provided user ID (`uid`) and requires a valid Bearer token in the Authorization header. Note: Webhook on your end would receive this object when any of the data changes. The same response from this endpoint is also what would be sent to your user webhook.
+        Retrieves user details based on the provided CalorieCam user ID (`uid`).
       security:
         - BearerAuth: []
       parameters:
@@ -529,7 +529,7 @@ paths:
     get:
       summary: Get the user's nutrition logs
       description: >
-        This endpoint retrieves nutrition logs for a user based on the provided user ID (`uid`), start date (`from`), and end date (`to`). It requires a valid Bearer token in the Authorization header.
+        Retrive nutrition logs for a user based on the CalorieCam user ID (`uid`), start date (`from`), and end date (`to`). Logs are grouped into days and an array of meals details all logs for the given day.
       security:
         - BearerAuth: []
       parameters:
@@ -590,7 +590,7 @@ paths:
     get:
       summary: Get the user's weight logs
       description: >
-        This endpoint retrieves weight logs for a user based on the provided user ID (`uid`), start date (`from`), and end date (`to`). It requires a valid Bearer token in the Authorization header.
+        Retrive body weight logs for a user based on the CalorieCam user ID (`uid`), start date (`from`), and end date (`to`).
       security:
         - BearerAuth: []
       parameters:
@@ -649,7 +649,8 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /insights:
     get:
-      summary: Retrieve metric specific insights for a specific time period and aggregation type
+      summary: User insights
+      description: Receive insights for a specific metrics and a custom aggregation for the specified time period.
       parameters:
         - in: query
           name: uid
@@ -682,12 +683,13 @@ paths:
           example: calories
         - in: query
           name: aggregation
-          required: true
+          required: false
           schema:
             type: string
             enum: [daily, weekly, monthly, yearly]
-          description: The aggregation period.
-          example: weekly
+            default: daily
+          description: The aggregation period. Defaults to `daily` if not supplied.
+          example: daily
       responses:
         200:
           description: Successful response with insights data.
@@ -740,22 +742,23 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
   /recommendations:
     get:
-      summary: Retrieve user specific recommendations
+      summary: Recommendations
+      description: Retrive recommendation for the user for a given time period. Responses can optionally also include meals where each `meal` item includes a rating that support the recommendation
       parameters:
         - in: query
           name: uid
           required: true
           schema:
             type: string
-          description: The user ID.
-          example: user123
+          description: The CaloieCam user ID.
+          example: 456457894531546498
         - in: query
           name: from
           required: true
           schema:
             type: string
             format: date
-          description: The start date for logs retrieval.
+          description: The start date for the recommendation period.
           example: "2023-05-01"
         - in: query
           name: to
@@ -763,7 +766,7 @@ paths:
           schema:
             type: string
             format: date
-          description: The end date for logs retrieval.
+          description: The end date for the recommendation period.
           example: "2023-06-01"
       responses:
         200:
@@ -793,8 +796,9 @@ paths:
                           type: string
                           description: The content of the insight.
                           example: There are several days where meals are not logged or inconsistently logged. To better track your progress, please make an effort to log all meals and snacks every day.
-                        logs:
+                        meals:
                           type: array
+                          description: Can be empty. List of meals where each `meal` also includes a rating (positive or negative). These meals are added to the recommendation for the coach or personal trainer to reference meals that support the recommendation.
                           items:
                             type: object
                             properties:
@@ -919,9 +923,9 @@ paths:
 
   /nutrition/goals:
     post:
-      summary: Update user nutrition goals
+      summary: Update nutrition goals
       description: >
-        This endpoint updates the nutrition goals for a user based on the provided user ID (`uid`) and requires a valid Bearer token in the Authorization header. If specific nutrition goals (calories, carbs, fat, protein) are not provided in the request, the existing values are retained. The provided values must be valid numbers.
+        Change the nutrition goals for a user based on the provided user ID (`uid`). If specific nutrition goals (calories, carbs, fat, protein) are not provided in the request, the existing values are retained. The provided values must be valid numbers. Use this enpoint with caution and ensure the macros and calories are calorically correct.
       security:
         - BearerAuth: []
       parameters:
@@ -934,7 +938,7 @@ paths:
         - name: uid
           in: query
           required: true
-          description: User ID
+          description: CalorieCam user id
           schema:
             type: string
         - name: calories
