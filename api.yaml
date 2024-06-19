@@ -1,0 +1,1005 @@
+openapi: 3.0.1
+info:
+  title: CalorieCam Partner API
+  description: >
+    NOTE: API not final, not live, and subject to change. Intended to serve as a basis for discussion on how to best integrate. All measurement values use the metric system.
+  version: 1.0.0
+servers:
+  - url: https://api.caloriecam.ai/v1
+    description: Main API server
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    JwtPayload:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              example: GXP_ID
+              description: The unique GXP identifier for the user.
+            name:
+              type: string
+              example: FirstName LastName
+              description: The full name of the user.
+        pt:
+          type: object
+          properties:
+            name:
+              type: string
+              example: FirstName LastName
+              description: The full name of the personal trainer.
+            id:
+              type: string
+              example: GXP_ID
+              description: The unique GXP identifier for the personal trainer.
+            pictureUrl:
+              type: string
+              example: PROFILE_PICTURE_URL
+              description: The URL to the personal trainer's profile picture.
+        gym:
+          type: object
+          properties:
+            name:
+              type: string
+              example: Gym Name
+              description: The name of the gym.
+            id:
+              type: string
+              example: GXP_ID
+              description: The unique GXP identifier for the gym.
+            pictureUrl:
+              type: string
+              description: The URL to the gym's profile picture.
+    UserDetails:
+      type: object
+      properties:
+        uid:
+          type: string
+          description: The unique CalorieCam identifier for the user.
+          example: 06644ab4-c3c8-4aa5-9768-c624995eb75b
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time when the user was created.
+        photoUrl:
+          type: string
+          nullable: true
+          description: The URL to the user's profile picture.
+          example: https://firebasestorage.googleapis.com/v0/b/calorie-cam.appspot.com/o/r8BEuxI83XZEjhmwvOk0DSWO8su2%2Flogs%2F06644ab4-c3c8-4aa8-9868-c624995eb7ab.m4a?alt=media&token=a8527846-29d4-43f3-a18b-cd97f82cb111
+        freeTrialDays:
+          type: integer
+          description: The number of free trial days available to the user.
+          example: 7
+        name:
+          type: string
+          nullable: true
+          description: The full name of the user. This can be null for some iOS users.
+          example: John Doe
+        subscription:
+          type: object
+          nullable: true
+          properties:
+            subscriptionPeriod:
+              type: string
+              description: Subscription period, specified in ISO 8601 format.
+              example: P1Y
+            priceString:
+              type: string
+              example: $23.60
+              description: The subscription price as a string.
+            price:
+              type: number
+              description: The subscription price as a number.
+              example: 26.60984
+            currencyCode:
+              type: string
+              description: ISO 4217 currency code.
+              example: AUD
+            expiresAt:
+              type: string
+              format: date-time
+              description: The expiration date of the subscription.
+            isActive:
+              type: boolean
+              description: Indicates if the subscription is active.
+            status:
+              type: string
+              description: Describing the status of the subscription.
+              enum:
+                [
+                  initialPurchase,
+                  renewal,
+                  cancellation,
+                  uncancellation,
+                  subscriptionPaused,
+                  expiration,
+                  billingIssue,
+                ]
+              example: initialPurchase
+            goals:
+              type: object
+              description: The daily calorie and macros goals for the user.
+              properties:
+                nutrition:
+                  type: object
+                  properties:
+                    macros:
+                      type: object
+                      properties:
+                        carbs:
+                          type: number
+                          description: The amount of carbohydrates in grams.
+                          example: 10
+                        protein:
+                          type: number
+                          description: The amount of protein in grams.
+                          example: 5.5
+                        fat:
+                          type: number
+                          description: The amount of fat in grams.
+                          example: 8.9
+                    calories:
+                      type: number
+                      description: The total number of calories in kcal.
+                      example: 89
+    Meal:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time when the meal was created.
+        id:
+          type: string
+          description: The unique identifier for the meal.
+          example: 1231hf23-12fda23-432asdf43-2345ad1
+        mealType:
+          type: string
+          description: The type of meal.
+          enum: [breakfast, lunch, dinner, snack]
+          example: breakfast
+        context:
+          type: string
+          nullable: true
+          description: User input to give context about the image. Either describes what it is or how much user had. For meals where media.type == audio, this will return the audio transcript.
+          example: Only had half of it
+        media:
+          type: object
+          nullable: true
+          properties:
+            type:
+              type: string
+              description: The type of media.
+              enum: [text, audio, image]
+              example: image
+            url:
+              type: string
+              description: URL to the image or audio file.
+        items:
+          type: array
+          description: List of items consumed as part of the meal.
+          items:
+            $ref: "#/components/schemas/MealItem"
+        totals:
+          nullable: true
+          type: object
+          properties:
+            calories:
+              type: number
+              description: The total number of calories for the meal in kcal.
+              example: 500
+            macros:
+              type: object
+              properties:
+                carbs:
+                  type: number
+                  description: The total amount of carbohydrates in grams.
+                  example: 40
+                fat:
+                  type: number
+                  description: The total amount of fat in grams.
+                  example: 29.5
+                protein:
+                  type: number
+                  description: The total amount of protein in grams.
+                  example: 12
+    MealItem:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the meal item.
+          example: Banana - medium
+        calories:
+          type: number
+          description: The number of calories in the meal item in kcal.
+          example: 250
+        macros:
+          type: object
+          properties:
+            carbs:
+              type: number
+              description: The amount of carbohydrates in grams.
+              example: 12.5
+            fat:
+              type: number
+              description: The amount of fat in grams.
+              example: 6
+            protein:
+              type: number
+              description: The amount of protein in grams.
+              example: 2.4
+        quantity:
+          type: number
+          description: The quantity of the meal item.
+          example: 1
+        unit:
+          type: string
+          description: The unit of measurement for the quantity.
+          example: serving
+    NutritionDay:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          description: The date for the log.
+        calories:
+          type: number
+          description: The total number of calories consumed on this date in kcal.
+          example: 2003
+        macros:
+          type: object
+          properties:
+            carbs:
+              type: number
+              description: The total amount of carbohydrates consumed on this date in grams.
+              example: 392
+            fat:
+              type: number
+              description: The total amount of fat consumed on this date in grams.
+              example: 123.2
+            protein:
+              type: number
+              description: The total amount of protein consumed on this date in grams.
+              example: 164.6
+        meals:
+          type: array
+          description: List of meals consumed on this date.
+          items:
+            $ref: "#/components/schemas/Meal"
+    WeightLog:
+      type: object
+      properties:
+        weight:
+          type: object
+          properties:
+            value:
+              type: number
+              description: The weight value.
+              example: 83
+            unit:
+              type: string
+              description: The unit of the weight. Will always be kg.
+              example: kg
+              enum: [kg]
+        createdAt:
+          type: string
+          format: date-time
+          description: The date and time when the weight was logged.
+    Insight:
+      type: object
+      properties:
+        rating:
+          type: string
+          description: The rating of the insight.
+          example: negative
+        title:
+          type: string
+          description: The title of the insight.
+          example: Inconsistent Meal Logging
+        content:
+          type: string
+          description: The content of the insight.
+          example: There are several days where meals are not logged or inconsistently logged. To better track your progress, please make an effort to log all meals and snacks every day.
+        logs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                description: The ID of the log.
+                example: 88c5351b-087a-4688-94b8-500adfa0a991
+              rating:
+                type: string
+                description: The rating of the log.
+                example: negative
+              createdAt:
+                type: string
+                format: date-time
+                description: The creation date of the log.
+                example: 2024-05-19T12:24:20.000Z
+              context:
+                type: string
+                description: The context of the log.
+                example: null
+              mealType:
+                type: string
+                description: The type of meal.
+                example: dinner
+              media:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    description: The type of media.
+                    example: image
+                  url:
+                    type: string
+                    description: The URL of the media.
+                    example: https://example.com/media.jpg
+              items:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    unit:
+                      type: string
+                      description: The unit of the item.
+                      example: serving
+                    macros:
+                      type: object
+                      properties:
+                        carbs:
+                          type: number
+                          description: The amount of carbs.
+                          example: 40
+                        protein:
+                          type: number
+                          description: The amount of protein.
+                          example: 35
+                        fat:
+                          type: number
+                          description: The amount of fat.
+                          example: 50
+                    quantity:
+                      type: number
+                      description: The quantity of the item.
+                      example: 1
+                    name:
+                      type: string
+                      description: The name of the item.
+                      example: cheeseburger with bacon
+                    calories:
+                      type: number
+                      description: The calories of the item.
+                      example: 750
+                    type:
+                      type: string
+                      description: The type of the item.
+                      example: food
+              totals:
+                type: object
+                properties:
+                  calories:
+                    type: number
+                    description: The total calories.
+                    example: 1350
+                  macros:
+                    type: object
+                    properties:
+                      carbs:
+                        type: number
+                        description: The total carbs.
+                        example: 105
+                      fat:
+                        type: number
+                        description: The total fat.
+                        example: 80
+                      protein:
+                        type: number
+                        description: The total protein.
+                        example: 40
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+          description: The status of the error response.
+        message:
+          type: string
+          description: A descriptive error message.
+        code:
+          type: integer
+          description: The HTTP status code.
+    NutritionSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+          description: The status of the success response.
+        code:
+          type: integer
+          description: The HTTP status code.
+        data:
+          type: array
+          description: The data returned in the response.
+          items:
+            $ref: "#/components/schemas/NutritionDay"
+    WeightSuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+          description: The status of the success response.
+        code:
+          type: integer
+          description: The HTTP status code.
+        data:
+          type: array
+          description: The data returned in the response.
+          items:
+            $ref: "#/components/schemas/WeightLog"
+security:
+  - BearerAuth: []
+paths:
+  /r:
+    post:
+      summary: URL with JWT in query param
+      description: >
+        Directing users with a JWT token in the query parameter `j`. The token should have a payload structured as described as below. See `JwtPayload` in schemas. Note that this is the minimum required information. Users who navigate to this URL will be redirected to the App/Play Store.
+      parameters:
+        - name: j
+          in: query
+          required: true
+          description: JWT token
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the appropriate resource
+          headers:
+            Location:
+              description: URL to redirect to
+              schema:
+                type: string
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /user:
+    get:
+      summary: Get user details
+      description: >
+        This endpoint retrieves user details based on the provided user ID (`uid`) and requires a valid Bearer token in the Authorization header. Note: Webhook on your end would receive this object when any of the data changes. The same response from this endpoint is also what would be sent to your user webhook.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token
+          schema:
+            type: string
+        - name: uid
+          in: query
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserDetails"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /nutrition:
+    get:
+      summary: Get the user's nutrition logs
+      description: >
+        This endpoint retrieves nutrition logs for a user based on the provided user ID (`uid`), start date (`from`), and end date (`to`). It requires a valid Bearer token in the Authorization header.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token
+          schema:
+            type: string
+        - name: uid
+          in: query
+          required: true
+          description: User ID
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          description: Start date in ISO 8601 format
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          description: End date in ISO 8601 format
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NutritionSuccessResponse"
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /weight:
+    get:
+      summary: Get the user's weight logs
+      description: >
+        This endpoint retrieves weight logs for a user based on the provided user ID (`uid`), start date (`from`), and end date (`to`). It requires a valid Bearer token in the Authorization header.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token
+          schema:
+            type: string
+        - name: uid
+          in: query
+          required: true
+          description: User ID
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          description: Start date in ISO 8601 format
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          description: End date in ISO 8601 format
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeightSuccessResponse"
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /insights:
+    get:
+      summary: Retrieve metric specific insights for a specific time period and aggregation type
+      parameters:
+        - in: query
+          name: uid
+          required: true
+          schema:
+            type: string
+          description: The user ID.
+          example: 32123431sdf345gdf
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+          description: The start date for logs retrieval.
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+          description: The end date for logs retrieval.
+        - in: query
+          name: metric
+          required: true
+          schema:
+            type: string
+            enum: [calories, protein, carbs, fat]
+          description: The metric to aggregate.
+          example: calories
+        - in: query
+          name: aggregation
+          required: true
+          schema:
+            type: string
+            enum: [daily, weekly, monthly, yearly]
+          description: The aggregation period.
+          example: weekly
+      responses:
+        200:
+          description: Successful response with insights data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        date:
+                          type: string
+                          format: date
+                          example: "2024-06-03"
+                        value:
+                          type: number
+                          example: 52.8
+                        unit:
+                          type: string
+                          example: "g"
+        400:
+          description: Bad request due to missing or invalid parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: Unauthorized request due to invalid or missing authorization token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        500:
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /recommendations:
+    get:
+      summary: Retrieve user specific recommendations
+      parameters:
+        - in: query
+          name: uid
+          required: true
+          schema:
+            type: string
+          description: The user ID.
+          example: user123
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+          description: The start date for logs retrieval.
+          example: "2023-05-01"
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+          description: The end date for logs retrieval.
+          example: "2023-06-01"
+      responses:
+        200:
+          description: Successful response with insights data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rating:
+                          type: string
+                          description: The rating of the insight.
+                          example: negative
+                        title:
+                          type: string
+                          description: The title of the insight.
+                          example: Inconsistent Meal Logging
+                        content:
+                          type: string
+                          description: The content of the insight.
+                          example: There are several days where meals are not logged or inconsistently logged. To better track your progress, please make an effort to log all meals and snacks every day.
+                        logs:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                description: The ID of the log.
+                                example: 88c5351b-087a-4688-94b8-500adfa0a991
+                              rating:
+                                type: string
+                                description: The rating of the log.
+                                example: negative
+                              createdAt:
+                                type: string
+                                format: date-time
+                                description: The creation date of the log.
+                                example: 2024-05-19T12:24:20.000Z
+                              context:
+                                type: string
+                                description: The context of the log.
+                                example: null
+                              mealType:
+                                type: string
+                                description: The type of meal.
+                                example: dinner
+                              media:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                    description: The type of media.
+                                    example: image
+                                  url:
+                                    type: string
+                                    description: The URL of the media.
+                                    example: https://example.com/media.jpg
+                              items:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    unit:
+                                      type: string
+                                      description: The unit of the item.
+                                      example: serving
+                                    macros:
+                                      type: object
+                                      properties:
+                                        carbs:
+                                          type: number
+                                          description: The amount of carbs.
+                                          example: 40
+                                        protein:
+                                          type: number
+                                          description: The amount of protein.
+                                          example: 35
+                                        fat:
+                                          type: number
+                                          description: The amount of fat.
+                                          example: 50
+                                    quantity:
+                                      type: number
+                                      description: The quantity of the item.
+                                      example: 1
+                                    name:
+                                      type: string
+                                      description: The name of the item.
+                                      example: cheeseburger with bacon
+                                    calories:
+                                      type: number
+                                      description: The calories of the item.
+                                      example: 750
+                                    type:
+                                      type: string
+                                      description: The type of the item.
+                                      example: food
+                              totals:
+                                type: object
+                                properties:
+                                  calories:
+                                    type: number
+                                    description: The total calories.
+                                    example: 1350
+                                  macros:
+                                    type: object
+                                    properties:
+                                      carbs:
+                                        type: number
+                                        description: The total carbs.
+                                        example: 105
+                                      fat:
+                                        type: number
+                                        description: The total fat.
+                                        example: 80
+                                      protein:
+                                        type: number
+                                        description: The total protein.
+                                        example: 40
+        400:
+          description: Bad request due to missing or invalid parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        401:
+          description: Unauthorized request due to invalid or missing authorization token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        404:
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        500:
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /nutrition/goals:
+    post:
+      summary: Update user nutrition goals
+      description: >
+        This endpoint updates the nutrition goals for a user based on the provided user ID (`uid`) and requires a valid Bearer token in the Authorization header. If specific nutrition goals (calories, carbs, fat, protein) are not provided in the request, the existing values are retained. The provided values must be valid numbers.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token
+          schema:
+            type: string
+        - name: uid
+          in: query
+          required: true
+          description: User ID
+          schema:
+            type: string
+        - name: calories
+          in: query
+          required: false
+          description: Daily calorie goal in kcal. Must be a valid number.
+          schema:
+            type: number
+          example: 2000
+        - name: carbs
+          in: query
+          required: false
+          description: Daily carbohydrate goal in grams. Must be a valid number.
+          schema:
+            type: number
+          example: 250
+        - name: fat
+          in: query
+          required: false
+          description: Daily fat goal in grams. Must be a valid number.
+          schema:
+            type: number
+          example: 70
+        - name: protein
+          in: query
+          required: false
+          description: Daily protein goal in grams. Must be a valid number.
+          schema:
+            type: number
+          example: 150
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "User's nutrition goals updated"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
