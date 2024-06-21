@@ -86,19 +86,15 @@ components:
           type: object
           nullable: true
           properties:
-            subscriptionPeriod:
-              type: string
-              description: Subscription period, specified in ISO 8601 format.
-              example: P1Y
-            priceString:
-              type: string
-              example: $23.60
-              description: The subscription price as a string.
+            priceUsd:
+              type: number
+              example: 23.60
+              description: The subscription price in USD.
             price:
               type: number
               description: The subscription price as a number.
               example: 26.60984
-            currencyCode:
+            currency:
               type: string
               description: ISO 4217 currency code.
               example: AUD
@@ -109,6 +105,11 @@ components:
             isActive:
               type: boolean
               description: Indicates if the subscription is active.
+              example: true
+            store:
+              type: string
+              enum: [stripe, app_store, play_store]
+              example: app_store
             status:
               type: string
               description: Describing the status of the subscription.
@@ -421,6 +422,27 @@ components:
         code:
           type: integer
           description: The HTTP status code.
+      examples:
+        BadRequest:
+          value:
+            status: error
+            message: Bad Request
+            code: 400
+        Unauthorized:
+          value:
+            status: error
+            message: Unauthorized
+            code: 401
+        NotFound:
+          value:
+            status: error
+            message: Not Found
+            code: 404
+        InternalServerError:
+          value:
+            status: error
+            message: Internal Server Error
+            code: 500
     NutritionSuccessResponse:
       type: object
       properties:
@@ -458,7 +480,7 @@ paths:
     post:
       summary: Refer a user
       description: >
-        Directing users with a JWT token in the query parameter `j`. The token must have a payload structured as described in the `JwtPayload` schema. Note that this is the minimum required information. Users who navigate to this URL will be redirected to the App/Play Store and receive a correct attribution. Correctly attributed users' welcome screen in CalorieCam will show all relevant information from the referring partner (e.g. personal trainer, gym, etc.)
+        Point a user to this url `https://api.caloriecam.ai/v1/referral?j=JWT_TOKEN` where the `j` query parameter is a JWT token containing the `JwtPayload`. This URL will redirect users to the App/Play Store and will result in a correct attribution. Correctly attributed users' welcome screen in CalorieCam will show all relevant information from the referring partner (e.g. personal trainer, gym, etc.)
       parameters:
         - name: j
           in: query
@@ -480,9 +502,116 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
+  /nutrition/goals:
+    post:
+      summary: Update nutrition goals
+      description: >
+        Change the nutrition goals for a user. If specific nutrition goals (calories, carbs, fat, protein) are not provided in the request, the existing values are retained. The provided values must be valid numbers. Use this endpoint with caution and ensure the macros and calories are calorically correct.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          description: Bearer token
+          schema:
+            type: string
+        - name: uid
+          in: query
+          required: true
+          description: CalorieCam user id
+          schema:
+            type: string
+        - name: calories
+          in: query
+          required: false
+          description: Daily calorie goal in kcal. Must be a valid number.
+          schema:
+            type: number
+          example: 2000
+        - name: carbs
+          in: query
+          required: false
+          description: Daily carbohydrate goal in grams. Must be a valid number.
+          schema:
+            type: number
+          example: 250
+        - name: fat
+          in: query
+          required: false
+          description: Daily fat goal in grams. Must be a valid number.
+          schema:
+            type: number
+          example: 70
+        - name: protein
+          in: query
+          required: false
+          description: Daily protein goal in grams. Must be a valid number.
+          schema:
+            type: number
+          example: 150
+      responses:
+        "200":
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: "Nutrition goals updated successfully"
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
+        "404":
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Not Found
+                code: 404
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
+
   /user:
     get:
-      summary: Get user details
+      summary: User details
       description: >
         Retrieves user details based on the provided CalorieCam user ID (`uid`).
       security:
@@ -513,23 +642,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
+
         "404":
           description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Not Found
+                code: 404
+
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
   /nutrition:
     get:
-      summary: Get the user's nutrition logs
+      summary: Nutrition logs
       description: >
-        Retrive nutrition logs for a user based on the CalorieCam user ID (`uid`), start date (`from`), and end date (`to`). Logs are grouped into days and an array of meals details all logs for the given day.
+        Retrieve nutrition logs for a specified time period. Logs are grouped into days where each day has an array of meals and each meal has an array of items. Totals (calories and macros) are provided for meals and for the day.
       security:
         - BearerAuth: []
       parameters:
@@ -574,23 +727,46 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
         "404":
           description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Not Found
+                code: 404
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
+
   /weight:
     get:
-      summary: Get the user's weight logs
+      summary: Weight logs
       description: >
-        Retrive body weight logs for a user based on the CalorieCam user ID (`uid`), start date (`from`), and end date (`to`).
+        Retrieve body weight logs for a user based on the CalorieCam user ID (`uid`), start date (`from`), and end date (`to`).
       security:
         - BearerAuth: []
       parameters:
@@ -635,21 +811,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
         "401":
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
         "404":
           description: Not Found
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Not Found
+                code: 404
+        "500":
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
   /insights:
     get:
-      summary: User insights
+      summary: Insights
       description: Receive insights for a specific metrics and a custom aggregation for the specified time period.
       parameters:
         - in: query
@@ -722,28 +920,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
         401:
           description: Unauthorized request due to invalid or missing authorization token.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
         404:
           description: User not found.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Not Found
+                code: 404
         500:
           description: Internal server error.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
   /recommendations:
     get:
       summary: Recommendations
-      description: Retrive recommendation for the user for a given time period. Responses can optionally also include meals where each `meal` item includes a rating that support the recommendation
+      description: Retrieve recommendations for the user for a given time period. Responses can optionally also include meals where each `meal` item includes a rating that support the recommendation. Note that the response will take a bit longer (approx. 3-6 seconds) so please manage this wait accordingly in your UI.
       parameters:
         - in: query
           name: uid
@@ -902,108 +1116,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Bad Request
+                code: 400
         401:
           description: Unauthorized request due to invalid or missing authorization token.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
         404:
           description: User not found.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Not Found
+                code: 404
         500:
           description: Internal server error.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-
-  /nutrition/goals:
-    post:
-      summary: Update nutrition goals
-      description: >
-        Change the nutrition goals for a user based on the provided user ID (`uid`). If specific nutrition goals (calories, carbs, fat, protein) are not provided in the request, the existing values are retained. The provided values must be valid numbers. Use this enpoint with caution and ensure the macros and calories are calorically correct.
-      security:
-        - BearerAuth: []
-      parameters:
-        - name: Authorization
-          in: header
-          required: true
-          description: Bearer token
-          schema:
-            type: string
-        - name: uid
-          in: query
-          required: true
-          description: CalorieCam user id
-          schema:
-            type: string
-        - name: calories
-          in: query
-          required: false
-          description: Daily calorie goal in kcal. Must be a valid number.
-          schema:
-            type: number
-          example: 2000
-        - name: carbs
-          in: query
-          required: false
-          description: Daily carbohydrate goal in grams. Must be a valid number.
-          schema:
-            type: number
-          example: 250
-        - name: fat
-          in: query
-          required: false
-          description: Daily fat goal in grams. Must be a valid number.
-          schema:
-            type: number
-          example: 70
-        - name: protein
-          in: query
-          required: false
-          description: Daily protein goal in grams. Must be a valid number.
-          schema:
-            type: number
-          example: 150
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: "User's nutrition goals updated"
-        "400":
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "401":
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "404":
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-        "500":
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
