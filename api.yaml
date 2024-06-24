@@ -36,7 +36,7 @@ info:
 
     The `UserDetails` object contains a `paymentUrl`. This URL redirects the user to a subscription page where they can select and purchase their preferred subscription. Any changes to a subscription (e.g., initial purchase, cancellation, etc.) will trigger an event that you receive on your webhook. Note that users have a choice to purchase a subscription in-app or via the `paymentUrl`. Users who purchase a subscription via the `paymentUrl` will receive a minimum 10% discount on all subscription options.
 
-    ### When to prompt users to subscribe
+    *When to prompt users to subscribe*
 
     The `UserDetails` object contains a `createdAt` date (when the user signed up) and `freeTrialDays` (the number of free trial days starting from the `createdAt` date). We recommend prompting the user 1-2 days before their free trial expires.
     Note that the default number of `freeTrialDays` for partner referred users is 7.
