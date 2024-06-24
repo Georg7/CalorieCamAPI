@@ -1,8 +1,45 @@
 openapi: 3.0.1
 info:
   title: CalorieCam Partner API
-  description: >
+  description: |
     Selected partners can use this API to integrate with CalorieCam. Partners can refer user to CalorieCam and receive nutritional data, insights, recommendations and more from authenticated user the partner has referred.
+
+    ## Authentication
+
+    Please contact us at hello@caloriecam.ai to request your API credentials. Include the following information in your request:
+    - Partner name
+    - Partner logo URL (square image, PNG or JPEG)
+    - Webhook URL
+
+    Once your request has been reviewed and approved, you can start using the CalorieCam Partner API.
+
+    ## Webhooks 
+
+    To receive updates on user data (e.g., subscription status), you need to provide a webhook URL. 
+    We will send an event to this webhook URL every time a `User` value changes. You must respond with a status 200. CalorieCam retries a single webhook with increasing backoff off between 10 and 600 for 24h.
+
+    Please see the `WebhookEvents` schema for data structure.
+
+    ## Referring Users
+
+    You can only access data from users that you have referred. Here is how the referral process works and how you receive the CalorieCam user ID:
+
+    1. Direct the user to this URL: `https://api.caloriecam.ai/v1/referral?j=JWT_TOKEN`. Note that the JWT must contain all fields specified in the `JWTPayload`.
+    2. The user is redirected to the App Store or Google Play Store.
+    3. The user downloads CalorieCam and sees the correct attribution information on their welcome screen.
+    4. The user signs up for CalorieCam.
+    5. A webhook notification is sent containing `UserDetails` including the CalorieCam user ID
+
+    You now have the user's CalorieCam UID and can use this UID to make requests.
+
+    ## CalorieCam Subscriptions
+
+    The `UserDetails` object contains a `paymentUrl`. This URL redirects the user to a subscription page where they can select and purchase their preferred subscription. Any changes to a subscription (e.g., initial purchase, cancellation, etc.) will trigger an event that you receive on your webhook. Note that users have a choice to purchase a subscription in-app or via the `paymentUrl`. Users who purchase a subscription via the `paymentUrl` will receive a minimum 10% discount on all subscription options.
+
+    ### When to prompt users to subscribe
+
+    The `UserDetails` object contains a `createdAt` date (when the user signed up) and `freeTrialDays` (the number of free trial days starting from the `createdAt` date). We recommend prompting the user 1-2 days before their free trial expires.
+    Note that the default number of `freeTrialDays` for partner referred users is 7.
   version: 1.0.0
 servers:
   - url: https://api.caloriecam.ai/v1
@@ -22,8 +59,8 @@ components:
           properties:
             id:
               type: string
-              example: GXP_ID
-              description: The unique GXP identifier for the user.
+              example: UID
+              description: The unique user id for the user the partner platform.
             name:
               type: string
               example: FirstName LastName
@@ -37,8 +74,8 @@ components:
               description: The full name of the personal trainer.
             id:
               type: string
-              example: GXP_ID
-              description: The unique GXP identifier for the personal trainer.
+              example: UID
+              description: The unique ID for the personal trainer.
             pictureUrl:
               type: string
               example: PROFILE_PICTURE_URL
@@ -52,8 +89,8 @@ components:
               description: The name of the gym.
             id:
               type: string
-              example: GXP_ID
-              description: The unique GXP identifier for the gym.
+              example: UID
+              description: The unique ID for the gym.
             pictureUrl:
               type: string
               description: The URL to the gym's profile picture.
@@ -150,6 +187,10 @@ components:
                   type: number
                   description: The total number of calories in kcal.
                   example: 89
+        paymentUrl:
+          type: string
+          description: The url for the user to purchase a subscription
+          example: https://caloriecam.ai/subscribe?u=123
     Meal:
       type: object
       properties:
@@ -183,6 +224,7 @@ components:
             url:
               type: string
               description: URL to the image or audio file.
+              example: https://picsum.photos/200
         items:
           type: array
           description: List of items consumed as part of the meal.
@@ -473,6 +515,141 @@ components:
           description: The data returned in the response.
           items:
             $ref: "#/components/schemas/WeightLog"
+    Workout:
+      type: object
+      properties:
+        calories:
+          type: number
+          nullable: true
+          description: Calories burned
+        createdAt:
+          type: number
+          format: int64
+          description: Unix timestamp in seconds
+        distance:
+          type: number
+          nullable: true
+          description: Distance covered
+        duration:
+          type: number
+          nullable: true
+          description: Duration of the workout
+        end:
+          type: number
+          nullable: true
+          format: int64
+          description: Unix timestamp in seconds
+        id:
+          type: string
+          description: Unique identifier for the workout
+        name:
+          type: string
+          nullable: true
+          description: Name of the workout
+        reps:
+          type: number
+          nullable: true
+          description: Number of repetitions
+        sets:
+          type: number
+          nullable: true
+          description: Number of sets
+        source:
+          type: string
+          description: Source of the workout data
+        start:
+          type: number
+          nullable: true
+          format: int64
+          description: Unix timestamp in seconds
+        weight:
+          type: number
+          nullable: true
+          description: Weight used during the workout
+    WebhookEvents:
+      type: object
+      properties:
+        event:
+          type: string
+          enum:
+            - userCreated
+            - userUpdated
+            - userDeleted
+          example: userCreated
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-06-24T04:35:07.857Z"
+        data:
+          type: object
+          properties:
+            uid:
+              type: string
+              example: "06644ab4-c3c8-4aa5-9768-c624995eb75b"
+            createdAt:
+              type: string
+              format: date-time
+              example: "2024-06-24T04:35:07.857Z"
+            photoUrl:
+              type: string
+              format: uri
+              example: "https://firebasestorage.googleapis.com/v0/b/calorie-cam.appspot.com/o/r8BEuxI83XZEjhmwvOk0DSWO8su2%2Flogs%2F06644ab4-c3c8-4aa8-9868-c624995eb7ab.m4a?alt=media&token=a8527846-29d4-43f3-a18b-cd97f82cb111"
+            freeTrialDays:
+              type: integer
+              example: 7
+            name:
+              type: string
+              example: "John Doe"
+            subscription:
+              type: object
+              properties:
+                priceUsd:
+                  type: number
+                  example: 23.6
+                price:
+                  type: number
+                  example: 26.60984
+                currency:
+                  type: string
+                  example: "AUD"
+                expiresAt:
+                  type: string
+                  format: date-time
+                  example: "2024-06-24T04:35:07.857Z"
+                isActive:
+                  type: boolean
+                  example: true
+                store:
+                  type: string
+                  example: "app_store"
+                status:
+                  type: string
+                  example: "initialPurchase"
+            goals:
+              type: object
+              properties:
+                nutrition:
+                  type: object
+                  properties:
+                    macros:
+                      type: object
+                      properties:
+                        carbs:
+                          type: number
+                          example: 10
+                        protein:
+                          type: number
+                          example: 5.5
+                        fat:
+                          type: number
+                          example: 8.9
+                    calories:
+                      type: number
+                      example: 89
+            paymentUrl:
+              type: string
+              format: uri
+              example: "https://caloriecam.ai/subscribe?u=123"
 security:
   - BearerAuth: []
 paths:
@@ -481,6 +658,8 @@ paths:
       summary: Refer a user
       description: >
         Point a user to this url `https://api.caloriecam.ai/v1/referral?j=JWT_TOKEN` where the `j` query parameter is a JWT token containing the `JwtPayload`. This URL will redirect users to the App/Play Store and will result in a correct attribution. Correctly attributed users' welcome screen in CalorieCam will show all relevant information from the referring partner (e.g. personal trainer, gym, etc.)
+      tags:
+        - User
       parameters:
         - name: j
           in: query
@@ -511,6 +690,8 @@ paths:
       summary: Update nutrition goals
       description: >
         Change the nutrition goals for a user. If specific nutrition goals (calories, carbs, fat, protein) are not provided in the request, the existing values are retained. The provided values must be valid numbers. Use this endpoint with caution and ensure the macros and calories are calorically correct.
+      tags:
+        - Nutrition
       security:
         - BearerAuth: []
       parameters:
@@ -523,37 +704,33 @@ paths:
         - name: uid
           in: query
           required: true
-          description: CalorieCam user id
+          description: CalorieCam user ID
           schema:
             type: string
-        - name: calories
-          in: query
-          required: false
-          description: Daily calorie goal in kcal. Must be a valid number.
-          schema:
-            type: number
-          example: 2000
-        - name: carbs
-          in: query
-          required: false
-          description: Daily carbohydrate goal in grams. Must be a valid number.
-          schema:
-            type: number
-          example: 250
-        - name: fat
-          in: query
-          required: false
-          description: Daily fat goal in grams. Must be a valid number.
-          schema:
-            type: number
-          example: 70
-        - name: protein
-          in: query
-          required: false
-          description: Daily protein goal in grams. Must be a valid number.
-          schema:
-            type: number
-          example: 150
+      requestBody:
+        description: Object containing the nutrition goals
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                calories:
+                  type: number
+                  description: Daily calorie goal in kcal. Must be a valid number.
+                  example: 2000
+                carbs:
+                  type: number
+                  description: Daily carbohydrate goal in grams. Must be a valid number.
+                  example: 250
+                fat:
+                  type: number
+                  description: Daily fat goal in grams. Must be a valid number.
+                  example: 70
+                protein:
+                  type: number
+                  description: Daily protein goal in grams. Must be a valid number.
+                  example: 150
       responses:
         "200":
           description: Success
@@ -614,6 +791,8 @@ paths:
       summary: User details
       description: >
         Retrieves user details based on the provided CalorieCam user ID (`uid`).
+      tags:
+        - User
       security:
         - BearerAuth: []
       parameters:
@@ -683,6 +862,8 @@ paths:
       summary: Nutrition logs
       description: >
         Retrieve nutrition logs for a specified time period. Logs are grouped into days where each day has an array of meals and each meal has an array of items. Totals (calories and macros) are provided for meals and for the day.
+      tags:
+        - Nutrition
       security:
         - BearerAuth: []
       parameters:
@@ -767,6 +948,8 @@ paths:
       summary: Weight logs
       description: >
         Retrieve body weight logs for a user based on the CalorieCam user ID (`uid`), start date (`from`), and end date (`to`).
+      tags:
+        - Weight
       security:
         - BearerAuth: []
       parameters:
@@ -849,6 +1032,8 @@ paths:
     get:
       summary: Insights
       description: Receive insights for a specific metrics and a custom aggregation for the specified time period.
+      tags:
+        - Analysis
       parameters:
         - in: query
           name: uid
@@ -958,6 +1143,8 @@ paths:
     get:
       summary: Recommendations
       description: Retrieve recommendations for the user for a given time period. Responses can optionally also include meals where each `meal` item includes a rating that support the recommendation. Note that the response will take a bit longer (approx. 3-6 seconds) so please manage this wait accordingly in your UI.
+      tags:
+        - Analysis
       parameters:
         - in: query
           name: uid
@@ -1010,7 +1197,7 @@ paths:
                           type: string
                           description: The content of the insight.
                           example: There are several days where meals are not logged or inconsistently logged. To better track your progress, please make an effort to log all meals and snacks every day.
-                        meals:
+                        logs:
                           type: array
                           description: Can be empty. List of meals where each `meal` also includes a rating (positive or negative). These meals are added to the recommendation for the coach or personal trainer to reference meals that support the recommendation.
                           items:
@@ -1140,6 +1327,253 @@ paths:
                 status: error
                 message: Not Found
                 code: 404
+        500:
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
+  /workouts/create:
+    post:
+      summary: Log user workouts
+      description: This endpoint allows authenticated users to log their workouts.
+      tags:
+        - Workouts
+      requestBody:
+        description: Array of workout objects to be logged
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  calories:
+                    type: number
+                    description: Calories burned
+                  createdAt:
+                    type: number
+                    format: int64
+                    description: Unix timestamp in seconds
+                    example: 1625247600
+                  distance:
+                    type: number
+                    description: Distance covered
+                  duration:
+                    type: number
+                    description: Duration of the workout
+                  end:
+                    type: number
+                    format: int64
+                    description: Unix timestamp in seconds
+                    example: 1625251200
+                  id:
+                    type: string
+                    description: Unique identifier for the workout
+                  name:
+                    type: string
+                    description: Name of the workout
+                  reps:
+                    type: number
+                    description: Number of repetitions
+                  sets:
+                    type: number
+                    description: Number of sets
+                  source:
+                    type: string
+                    description: Source of the workout data
+                  start:
+                    type: number
+                    format: int64
+                    description: Unix timestamp in seconds
+                    example: 1625247600
+                  weight:
+                    type: number
+                    description: Weight used during the workout
+                required:
+                  - createdAt
+                  - id
+                  - name
+                  - source
+                oneOf:
+                  - required: [duration]
+                  - required: [reps]
+                  - required: [sets]
+      responses:
+        "200":
+          description: Workout saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: Workout saved successfully
+        "400":
+          description: Bad request due to missing or invalid parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Workout data missing
+                code: 400
+        "401":
+          description: Unauthorized request due to invalid or missing authorization token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
+        "404":
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: User not found
+                code: 404
+        500:
+          description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Internal server error
+                code: 500
+  /workouts:
+    get:
+      summary: Workouts
+      description: Retrieve logged workouts within a specified date range.
+      tags:
+        - Workouts
+      parameters:
+        - in: query
+          name: uid
+          schema:
+            type: string
+          required: true
+          description: User ID
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date
+          required: true
+          description: Start date for fetching workouts (YYYY-MM-DD)
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date
+          required: true
+          description: End date for fetching workouts (YYYY-MM-DD)
+      responses:
+        "200":
+          description: Successful retrieval of workouts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  code:
+                    type: integer
+                    example: 200
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        calories:
+                          type: number
+                          nullable: true
+                          description: Calories burned
+                        createdAt:
+                          type: string
+                          format: date-time
+                          description: Creation timestamp of the workout
+                        distance:
+                          type: number
+                          nullable: true
+                          description: Distance covered
+                        duration:
+                          type: number
+                          nullable: true
+                          description: Duration of the workout
+                        end:
+                          type: string
+                          nullable: true
+                          format: date-time
+                          description: End timestamp of the workout
+                        id:
+                          type: string
+                          description: Unique identifier for the workout
+                        name:
+                          type: string
+                          nullable: true
+                          description: Name of the workout
+                        reps:
+                          type: number
+                          nullable: true
+                          description: Number of repetitions
+                        sets:
+                          type: number
+                          nullable: true
+                          description: Number of sets
+                        source:
+                          type: string
+                          description: Source of the workout data
+                        start:
+                          type: string
+                          nullable: true
+                          format: date-time
+                          description: Start timestamp of the workout
+                        weight:
+                          type: number
+                          nullable: true
+                          description: Weight used during the workout
+        "204":
+          description: Workouts missing
+        "400":
+          description: Bad request due to missing or invalid parameters.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: UID missing
+                code: 400
+        "401":
+          description: Unauthorized request due to invalid or missing authorization token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                status: error
+                message: Unauthorized
+                code: 401
         500:
           description: Internal server error.
           content:
