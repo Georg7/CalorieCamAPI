@@ -13,18 +13,11 @@ info:
 
     Once your request has been reviewed and approved, you can start using the CalorieCam Partner API.
 
-    ## Webhooks 
-
-    To receive updates on user data (e.g., subscription status), you need to provide a webhook URL. 
-    We will send an event to this webhook URL every time a `User` value changes. You must respond with a status 200. CalorieCam retries a single webhook with increasing backoff off between 10 and 600 for 24h.
-
-    Please see the `WebhookEvents` schema for data structure.
-
     ## Referring Users
 
     You can only access data from users that you have referred. Here is how the referral process works and how you receive the CalorieCam user ID:
 
-    1. Direct the user to this URL: `https://api.caloriecam.ai/v1/referral?j=JWT_TOKEN`. Note that the JWT must contain all fields specified in the `JWTPayload`.
+    1. Direct the user to this URL: `https://api.caloriecam.ai/v1/referral?j=JWT_TOKEN`. Note that the JWT must contain all fields specified in the `JWTPayload` model.
     2. The user is redirected to the App Store or Google Play Store.
     3. The user downloads CalorieCam and sees the correct attribution information on their welcome screen.
     4. The user signs up for CalorieCam.
@@ -32,9 +25,16 @@ info:
 
     You now have the user's CalorieCam UID and can use this UID to make requests.
 
-    ## CalorieCam Subscriptions
+    ## Webhooks 
 
-    The `UserDetails` object contains a `paymentUrl`. This URL redirects the user to a subscription page where they can select and purchase their preferred subscription. Any changes to a subscription (e.g., initial purchase, cancellation, etc.) will trigger an event that you receive on your webhook. Note that users have a choice to purchase a subscription in-app or via the `paymentUrl`. Users who purchase a subscription via the `paymentUrl` will receive a minimum 10% discount on all subscription options.
+    To receive updates on user data (e.g., subscription status), you need to provide a webhook URL. 
+    We will send an event to this webhook URL every time a `User` value changes. You must respond with a status 200. CalorieCam retries a single webhook with increasing backoff off between 10 and 600 for 24h.
+
+    Please see the `WebhookEvents` model for data structure.
+
+    ## Subscriptions
+
+    The `UserDetails` object contains a `paymentUrl`. This URL redirects the user to a subscription page where they can select and purchase their preferred subscription. Any changes to a subscription (e.g., initial purchase, cancellation, etc.) will trigger an event that you receive on your webhook. Note that users have a choice to purchase a subscription in-app or via the `paymentUrl`. Users who purchase a subscription via the `paymentUrl` will receive a minimum 10% discount on all subscription options.  
 
     *When to prompt users to subscribe*
 
